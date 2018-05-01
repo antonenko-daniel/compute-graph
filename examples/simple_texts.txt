@@ -1,0 +1,2 @@
+{"doc_id": "first", "text": "A very very simple text"}
+{"doc_id": "second", "text": "This is the second try to write an extremely stupid text, which is not actually a text itself. :)"}
