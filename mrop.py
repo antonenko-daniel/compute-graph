@@ -16,10 +16,27 @@ class ComputeGraph(object):
     Graphs can have dependencies via join operation.
 
     After being defined, graph should be finalized and then it can be evaluated on an arbitrary input, or used
-    as a dependence for another graph. 
+    as a dependence for another graph.
+
+
+    Example of usage:
+
+        word_count = mrop.ComputeGraph()
+        word_count.map(words_extractor)
+        word_count.sort(("doc_id", "word"))
+        word_count.reduce(words_in_doc_counter, keys=("doc_id", "word"))
+        word_count.finalize()
+        word_count.run()
+        word_count.save_to_file('word_count.txt')
     """
 
     def __init__(self, source=None, verbose=False):
+        """Keyword arguments:
+        source: string or ComputeGraph obj, optional -- specify source for the graph, 
+                                                        either string with a filename or another graph
+        verbose: boolean, optional                   -- whether to generate verbose tracking while evaluating,
+                                                        spreads to the dependent graphs
+        """
         self.finalized = False
         self.dependences = []
         self.operations = []
