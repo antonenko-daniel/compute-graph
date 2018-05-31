@@ -244,11 +244,15 @@ class ComputeGraph(object):
 
     def _reduce(self, table, reducer, keys):
         """Implementation of reduce operation"""
-        self._print("_reduce with reducer {} and keys {}".format(reducer, keys))
+        # self._print("_reduce with reducer {} and keys {}".format(reducer, keys))
         current_keys = None
         current_subtable = None
         for line in table:
-            # self._print("current_keys: {}, keys: {}".format(current_keys, self._getitems(line, keys)))
+            # self._print("current_keys: {}, keys: {}, current_subtable: {}".format(
+            #     current_keys,
+            #     self._getitems(line, keys),
+            #     current_subtable)
+
             if current_keys != self._getitems(line, keys):
                 if current_subtable:
                     yield from reducer(current_subtable)
@@ -256,59 +260,76 @@ class ComputeGraph(object):
                 current_subtable = [line]
             else:
                 current_subtable.append(line)
+        if current_subtable:
+            yield from reducer(current_subtable)
         # TODO: check sorting
 
-    def _inner_join(self, table, on, keys):
+    def _inner_join(self, table_grouped, on_grouped):
         """Realization of inner join"""
-        for first in on:
-            for second in table:
-                # print('first, second', first, second)
-                # print('keys', keys)
-                if self._getitems(first, keys) == self._getitems(second, keys):
+        common_keys = set(table_grouped.keys()) & set(on_grouped.keys())
+        for keys in common_keys:
+            for first in on_grouped[keys]:
+                for second in table_grouped[keys]:
                     yield {**first, **second}
 
-    def _left_join_addition(self, table, on, keys):
+    def _left_join_addition(self, table_grouped, on_grouped):
         """Realization of additional elements computation during left join"""
-        # print('_left_join_addition entered')
-        for first in table:
-            # print('first', first)
-            second_matched = False
-            for second in on:
-                # print('second', second)
-                if self._getitems(first, keys) == self._getitems(second, keys):
-                    second_matched = True
-            if not second_matched:
-                # print(first)
-                yield {**first, **{k : None for k in set(second.keys()) - set(keys)}}
+        table_keys = set(table_grouped.keys())
+        on_keys = set(on_grouped.keys())
+        keys_only_in_table = table_keys - on_keys
 
-    def _right_join_addition(self, table, on, keys):
+        first_line_table = table_grouped[next(iter(table_keys))][0]
+        first_line_on = on_grouped[next(iter(on_keys))][0]
+        none_fields = set(first_line_on.keys()) - set(first_line_table.keys())
+        # print('none_fields', none_fields)
+        # exit(1)
+        for keys in keys_only_in_table:
+            for line in table_grouped[keys]:
+                # print(line)
+                yield {**line, **{k : None for k in none_fields}}
+
+    def _right_join_addition(self, table_grouped, on_grouped):
         """Realization of additional elements computation during right join"""
-        yield from self._left_join_addition(on, table, keys)
+        yield from self._left_join_addition(on_grouped, table_grouped)
+
+    def _group_by_keys(self, table, keys):
+        """Groups line with coincident keys into dict to later be used by self._join"""
+        current_keys = None
+        current_subtable = None
+        result = {}
+        for line in table:
+            # print('line', line)
+            if current_keys != self._getitems(line, keys):
+                if current_subtable:
+                    result[current_keys] = current_subtable
+                current_keys = self._getitems(line, keys)
+                current_subtable = [line]
+            else:
+                current_subtable.append(line)
+        if current_subtable:
+            result[current_keys] = current_subtable
+        return result
 
     def _join(self, table, on, keys, strategy='inner'):
-        """Implementation of join operation. Tables should not have coicident keys except those that used to join."""
+        """Implementation of join operation. Tables should not have coincident keys except those that used to join."""
         self._print("_join on {} with key {} and strategy {}".format(on, keys, strategy))
         on.verbose = self.verbose
 
+        table_grouped = self._group_by_keys(sorted(table, key=lambda line: self._getitems(line, keys)),keys)
+        on_grouped = self._group_by_keys(sorted(on, key=lambda line: self._getitems(line, keys)), keys)
+
         if strategy == 'inner':
-            table = list(table)
-            yield from self._inner_join(table, on, keys)
+            yield from self._inner_join(table_grouped, on_grouped)
         elif strategy == 'left':
-            table = list(table)
-            on = list(on)
-            yield from self._inner_join(table, on, keys)
-            yield from self._left_join_addition(table, on, keys)
+            yield from self._inner_join(table_grouped, on_grouped)
+            yield from self._left_join_addition(table_grouped, on_grouped)
         elif strategy == 'right':
-            table = list(table)
-            on = list(on)
-            yield from self._inner_join(table, on, keys)
-            yield from self._right_join_addition(table, on, keys)
+            yield from self._inner_join(table_grouped, on_grouped)
+            yield from self._right_join_addition(table_grouped, on_grouped)
         elif strategy == 'outer':
-            table = list(table)
-            on = list(on)
-            yield from self._inner_join(table, on, keys)
-            yield from self._left_join_addition(table, on, keys)
-            yield from self._right_join_addition(table, on, keys)
+            yield from self._inner_join(table_grouped, on_grouped)
+            yield from self._left_join_addition(table_grouped, on_grouped)
+            yield from self._right_join_addition(table_grouped, on_grouped)
         else:
             raise ValueError('Unknown strategy for join')
 
