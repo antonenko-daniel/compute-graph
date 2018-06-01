@@ -12,12 +12,12 @@ class ComputeGraphError(Exception):
 
 
 class ComputeGraph(object):
-    """Each graph is defined as sequence of elementary operation (map, sort, fold, reduce, join). 
+    """
+    Each graph is defined as sequence of elementary operation (map, sort, fold, reduce, join). 
     Graphs can have dependencies via join operation.
 
     After being defined, graph should be finalized and then it can be evaluated on an arbitrary input, or used
     as a dependence for another graph.
-
 
     Example of usage:
 
@@ -31,7 +31,8 @@ class ComputeGraph(object):
     """
 
     def __init__(self, source=None, verbose=False):
-        """Keyword arguments:
+        """
+        Keyword arguments:
         source: string or ComputeGraph obj, optional -- specify source for the graph, 
                                                         either string with a filename or another graph
         verbose: boolean, optional                   -- whether to generate verbose tracking while evaluating,
@@ -72,35 +73,78 @@ class ComputeGraph(object):
         yield from iter(self.source_data)
 
     def map(self, mapper):
-        """Add map operation to the graph"""
+        """
+        Add map operation to the graph. Map applies mapper to each row of the table, and gather all yielded 
+        rows to the result table. 
+
+        Keyword arguments:
+
+        mapper -- a mapper function (returning iterable) to be applied to each row of the table.
+                  Takes a row of the table (a dict) and after processing yields row or rows.
+                  Should return iterable
+        """
         if self.finalized:
             raise ComputeGraphError('Adding operations to finalized graph')
         self.operations.append(('_map', mapper))
         return self
 
     def sort(self, keys):
-        """Add sort operation to the graph"""
+        """
+        Add sort operation to the graph. Sort sorts table using keys as keys for sort.
+        
+        Keyword arguments:
+        keys    --      a tuple of keys, defining the order to sort the table with
+        """
         if self.finalized:
             raise ComputeGraphError('Adding operations to finalized graph')
         self.operations.append(('_sort', keys))
         return self
 
     def fold(self, folder, initial=None):
-        """Add fold operation to the graph"""
+        """
+        Add fold operation to the graph. Fold applies folder consequently to all rows from the table,
+        second argument of folder being transfered to the next application of folder.
+
+
+        Keyword arguments:
+        folder  --  a folder function to be aplied consequently to all rows from the table. 
+                    takes current row of the table and 'current value' dict,
+                    the output is passed as the second argument to the folder, processing the next row. 
+                    Applying folder to the last row from the table gives the final result of fold
+        initial --  dict to be passed to the second argument of folder when calling it the first time,
+                    passing the first row of the table as the first argument to folder
+        """
         if self.finalized:
             raise ComputeGraphError('Adding operations to finalized graph')
         self.operations.append(('_fold', folder, initial))
         return self      
 
     def reduce(self, reducer, keys):
-        """Add reduce operation to the graph"""
+        """
+        Add reduce operation to the graph. The graph shouls be sorted with respect to keys.
+        Reduce calles reducer for all subtables with coincident value of keys. The outputs of reducer
+        are merged to the output table.
+
+        Keyword arguments:
+        reducer     --  the function that takes subtable with constant keys and processes it
+                        Should return iterable
+        keys        --  keys to divide the table with
+        
+        """
         if self.finalized:
             raise ComputeGraphError('Adding operations to finalized graph')
         self.operations.append(('_reduce', reducer, keys))
         return self
 
     def join(self, on, keys, strategy='inner'):
-        """Add join operation to the graph"""
+        """
+        Add join operation to the graph. Join performs SQL join table with another table, passed to argument 'on'.
+
+        Keyword arguments:
+        on                                                --  the table to join the current table to
+        keys                                              --  keys for join
+        strategy ('inner', 'left', 'right' or 'outer')    --  strategy of SQL join
+        """
         if self.finalized:
             raise ComputeGraphError('Adding operations to finalized graph')
         self.operations.append(('_join', on, keys, strategy))
@@ -119,7 +163,7 @@ class ComputeGraph(object):
     def change_source(self, source):
         """Change source for the graph
 
-        source -- generator or str with filename
+        source (iterable object or string with filename)    -- new source for the graph.
         """
         if isinstance(source, str):
             self.source_filename = source
@@ -134,7 +178,8 @@ class ComputeGraph(object):
 
 
     def run(self, save_intermediate=None, source=None, verbose=False):
-        """Run the calculation, defined by the graph (should be finalized)
+        """
+        Run the calculation, defined by the graph (should be finalized)
 
         Keyword arguments:
         save_intermediate -- None, True or list of dependent graphs (default=None)
@@ -279,7 +324,6 @@ class ComputeGraph(object):
                 current_subtable.append(line)
         if current_subtable:
             yield from reducer(current_subtable)
-        # TODO: check sorting
 
     def _inner_join(self, table_grouped, on_grouped):
         """Realization of inner join"""
