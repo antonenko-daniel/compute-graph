@@ -60,14 +60,14 @@ class ComputeGraph(object):
         if self.verbose:
             print(*args, **kwargs)
 
-    def parse_file(self):
+    def _parse_file(self):
         """Make a generator from a json file"""
         self._print('_parse_file entered')
         with open(self.source_filename) as file:
             for line in file:
                 yield json.loads(line)
 
-    def source_wrapper(self):
+    def _source_wrapper(self):
         """wrapper for source not from file"""
         self._print('_source_wrapper entered, class=', self)
         yield from iter(self.source_data)
@@ -167,12 +167,12 @@ class ComputeGraph(object):
         """
         if isinstance(source, str):
             self.source_filename = source
-            self.source = self.parse_file
+            self.source = self._parse_file
         else:
             if not hasattr(source, '__iter__'):
                 raise ComputeGraphError('source is neither str nor iterable')
             self.source_data = source
-            self.source = self.source_wrapper
+            self.source = self._source_wrapper
 
         return self
 
@@ -254,7 +254,7 @@ class ComputeGraph(object):
         """Traverse the composition of graphs in the same order as further during the computation
         """
         # print('_traverse entered, sequence = ', sequence)
-        if self.source == self.source_wrapper and isinstance(self.source_data, ComputeGraph):
+        if self.source == self._source_wrapper and isinstance(self.source_data, ComputeGraph):
             self.dependences.insert(0, self.source_data)
         # print('_traverse entered, self = {}, dependences={}'.format(self, self.dependences))
 

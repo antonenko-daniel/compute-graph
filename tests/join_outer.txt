@@ -1,0 +1,5 @@
+{'id': '1', 'city': 'Moscow', 'name': 'Andrew'}
+{'id': '1', 'city': 'Moscow', 'name': 'Serge'}
+{'id': '2', 'city': 'Saint-Petersburg', 'name': 'Leonid'}
+{'id': '3', 'city': 'Kazan', 'name': None}
+{'name': 'Gregory', 'id': '4', 'city': None}

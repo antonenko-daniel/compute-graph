@@ -1,0 +1,3 @@
+{'id': '1', 'city': 'Moscow', 'name': 'Andrew'}
+{'id': '1', 'city': 'Moscow', 'name': 'Serge'}
+{'id': '2', 'city': 'Saint-Petersburg', 'name': 'Leonid'}
